@@ -6,35 +6,35 @@ use Illuminate\Http\Request;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Menu;
-use Illuminate\Support\Facades\DB; // Import DB facade
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
-    /**
-     * Store a new order and its items.
-     */
     public function store(Request $request)
     {
-        $validatedData = $request->validate([
+        Log::info("Incoming order:", $request->all());
+
+        // Validate the incoming request
+        $validated = $request->validate([
             'customer_name' => 'required|string|max:255',
-            'items' => 'required|array', // Expecting an array of menu items
+            'items' => 'required|array',
             'items.*.menu_id' => 'required|exists:menus,id',
             'items.*.quantity' => 'required|integer|min:1',
         ]);
 
-        // Start database transaction
-        DB::beginTransaction();  // Use DB without backslash now
+        DB::beginTransaction();
+
         try {
-            // Create the order
             $order = Order::create([
-                'customer_name' => $validatedData['customer_name'],
-                'total_price' => 0, // Temporary, will calculate below
+                'customer_name' => $validated['customer_name'],
+                'total_price' => 0,
+                'order_date' => now(),
             ]);
 
             $totalPrice = 0;
 
-            // Add items to the order
-            foreach ($validatedData['items'] as $item) {
+            foreach ($validated['items'] as $item) {
                 $menu = Menu::findOrFail($item['menu_id']);
                 $subtotal = $menu->price * $item['quantity'];
 
@@ -49,15 +49,24 @@ class OrderController extends Controller
                 $totalPrice += $subtotal;
             }
 
-            // Update the order's total price
             $order->update(['total_price' => $totalPrice]);
 
             DB::commit();
 
-            return response()->json(['message' => 'Order placed successfully!', 'order_id' => $order->id], 201);
+            return response()->json([
+                'message' => 'Order placed successfully!',
+                'order_id' => $order->id,
+                'total_price' => $totalPrice,
+            ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Order failed!', 'error' => $e->getMessage()], 500);
+
+            Log::error('Order creation failed: ' . $e->getMessage());
+
+            return response()->json([
+                'message' => 'Failed to place the order.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
     }
 }

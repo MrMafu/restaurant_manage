@@ -14,37 +14,34 @@ class UserController extends Controller
         return view('dashboard', compact('users'));
     }
 
-    public function edit($id)
+    public function edit(User $user)
     {
-        $user = User::findOrFail($id);
         return view('users.edit', compact('user'));
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, User $user)
     {
         $request->validate([
-            'username' => 'required|string|unique:users,username,' . $id,
+            'username' => 'required|string|unique:users,username,' . $user->id,
             'password' => 'nullable|string|confirmed',
         ]);
 
-        $user = User::findOrFail($id);
+        $user->update([
+            'username' => $request->username,
+            'password' => $request->filled('password') ? Hash::make($request->password) : $user->password,
+        ]);
 
-        $user->username = $request->username;
-
-        if ($request->filled('password')) {
-            $user->password = Hash::make($request->password);
-        }
-
-        $user->save();
-
-        return redirect()->route('dashboard')->with('success', 'User updated successfully');
+        return redirect()
+            ->route('dashboard')
+            ->with('success', 'User updated successfully.');
     }
 
-    public function destroy($id)
+    public function destroy(User $user)
     {
-        $user = User::findOrFail($id);
         $user->delete();
 
-        return redirect()->route('dashboard')->with('success', 'User deleted successfully');
+        return redirect()
+            ->route('dashboard', ['view' => 'users'])
+            ->with('success', 'User deleted successfully.');
     }
 }

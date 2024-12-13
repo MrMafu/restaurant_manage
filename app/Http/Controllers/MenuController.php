@@ -11,7 +11,7 @@ class MenuController extends Controller
 {
     public function index()
     {
-        $menus = Menu::all();
+        $menus = Menu::with('category')->get();
         return view('dashboard', compact('menus'));
     }
 
@@ -23,25 +23,27 @@ class MenuController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'price' => 'required|numeric',
-            'description' => 'required|string',
-            'image' => 'required|image|mimes:jpg,jpeg,png,gif|max:2048',
-            'category_id' => 'required|exists:categories,id',
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255|unique:menus,name',
+                'price' => 'required|numeric|min:0',
+                'description' => 'required|string',
+                'image' => 'required|image|mimes:jpg,jpeg,png,gif|max:2048',
+                'category_id' => 'required|exists:categories,id',
+            ]);
 
-        $imagePath = $request->file('image')->store('menu_images', 'public');
+            $validated['image'] = $request->file('image')->store('menu_images', 'public');
 
-        Menu::create([
-            'name' => $request->name,
-            'price' => $request->price,
-            'description' => $request->description,
-            'image' => $imagePath,
-            'category_id' => $request->category_id,
-        ]);
+            Menu::create($validated);
 
-        return redirect()->route('dashboard', ['view' => 'menus'])->with('success', 'Menu created successfully.');
+            return redirect()
+                ->route('dashboard', ['view' => 'menus'])
+                ->with('success', 'Menu created successfully.');
+        } catch (\Exception $e) {
+            return back()
+                ->withInput()
+                ->withErrors('Failed to create the menu. Please try again.');
+        }
     }
 
     public function edit(Menu $menu)
@@ -52,37 +54,45 @@ class MenuController extends Controller
 
     public function update(Request $request, Menu $menu)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'price' => 'required|numeric',
-            'description' => 'required|string',
-            'image' => 'sometimes|image|mimes:jpg,jpeg,png,gif|max:2048',
-            'category_id' => 'required|exists:categories,id',
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255|unique:menus,name,' . $menu->id,
+                'price' => 'required|numeric|min:0',
+                'description' => 'required|string',
+                'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
+                'category_id' => 'required|exists:categories,id',
+            ]);
 
-        if ($request->hasFile('image')) {
-            Storage::disk('public')->delete($menu->image);
+            if ($request->hasFile('image')) {
+                Storage::disk('public')->delete($menu->image);
+                $validated['image'] = $request->file('image')->store('menu_images', 'public');
+            }
 
-            $menu->image = $request->file('image')->store('menu_images', 'public');
+            $menu->update($validated);
+
+            return redirect()
+                ->route('dashboard', ['view' => 'menus'])
+                ->with('success', 'Menu updated successfully.');
+        } catch (\Exception $e) {
+            return back()
+                ->withInput()
+                ->withErrors('Failed to update the menu. Please try again.');
         }
-
-        $menu->update([
-            'name' => $request->name,
-            'price' => $request->price,
-            'description' => $request->description,
-            'image' => $menu->image,
-            'category_id' => $request->category_id,
-        ]);
-
-        return redirect()->route('dashboard', ['view' => 'menus'])->with('success', 'Menu updated successfully.');
     }
 
     public function destroy(Menu $menu)
     {
-        Storage::disk('public')->delete($menu->image);
+        try {
+            Storage::disk('public')->delete($menu->image);
+            $menu->delete();
 
-        $menu->delete();
-
-        return redirect()->route('dashboard', ['view' => 'menus'])->with('success', 'Menu deleted successfully.');
+            return redirect()
+                ->route('dashboard', ['view' => 'menus'])
+                ->with('success', 'Menu deleted successfully.');
+        } catch (\Exception $e) {
+            return redirect()
+                ->route('dashboard', ['view' => 'menus'])
+                ->withErrors('Failed to delete the menu. Please try again.');
+        }
     }
 }

@@ -13,10 +13,12 @@ class DashboardController extends Controller
     {
         $view = request('view');
 
-        $users = ($view === 'users') ? User::all() : [];
-        $categories = ($view === 'categories') ? Category::all() : [];
-        $menus = ($view === 'menus') ? Menu::with('category')->get() : [];
-
-        return view('dashboard', compact('users', 'categories', 'menus'));
+        $data = [
+            'users' => ($view === 'users') ? User::all() : [],
+            'categories' => ($view === 'categories') ? Category::all() : [],
+            'menus' => ($view === 'menus') ? Menu::with('category')->get() : [],
+        ];
+        
+        return view('dashboard', $data);        
     }
 }

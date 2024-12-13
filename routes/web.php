@@ -15,22 +15,22 @@ Route::get('/', [MainController::class, 'home'])->name('home');
 Route::get('/filter-menus/{categoryId}', [MainController::class, 'filterMenus']);
 
 // --- Auth ---
-Route::get('login', [AuthController::class, 'showLoginForm'])->name('login');
+Route::get('login', [AuthController::class, 'loginForm'])->name('login');
 Route::post('login', [AuthController::class, 'login']);
-Route::get('register', [AuthController::class, 'showRegisterForm'])->name('register');
+Route::get('register', [AuthController::class, 'registerForm'])->name('register');
 Route::post('register', [AuthController::class, 'register']);
 Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 
 // --- Admin ---
 Route::middleware(['role:admin'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::resource('users', UserController::class);
-    Route::resource('categories', CategoryController::class);
-    Route::resource('menus', MenuController::class);
+    Route::resource('users', UserController::class)->names('users');
+    Route::resource('categories', CategoryController::class)->names('categories');
+    Route::resource('menus', MenuController::class)->names('menus');
 });
 
 // --- Staff ---
 Route::middleware(['role:staff'])->group(function () {
     Route::get('/order', [OrderController::class, 'index'])->name('order');
-    Route::post('/order', [OrderController::class, 'store'])->name('order.store'); // Store new orders
+    Route::post('/order', [OrderController::class, 'store'])->name('order.store');
 });

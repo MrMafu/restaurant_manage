@@ -11,8 +11,13 @@ class MainController extends Controller
 {
     public function home()
     {
-        $categories = Category::all();
-        $menus = Menu::all();
+        $categories = Cache::remember('categories', 60, function () {
+            return Category::all();
+        });
+
+        $menus = Cache::remember('menus', 60, function () {
+            return Menu::with('category')->get();
+        });
 
         return view('home', compact('categories', 'menus'));
     }
@@ -22,11 +27,9 @@ class MainController extends Controller
         $cacheKey = $categoryId == 0 ? 'all_menus' : "menus_category_{$categoryId}";
 
         $menus = Cache::remember($cacheKey, 60, function () use ($categoryId) {
-            if ($categoryId == 0) {
-                return Menu::all();
-            } else {
-                return Menu::where('category_id', $categoryId)->get();
-            }
+            return $categoryId == 0
+                ? Menu::with('category')->get()
+                : Menu::with('category')->where('category_id', $categoryId)->get();
         });
 
         return response()->json(['menus' => $menus]);
